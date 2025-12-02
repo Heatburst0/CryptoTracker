@@ -14,7 +14,8 @@ data class CoinEntity(
     val image: String,
     val priceChangePercentage24h: Double,
     val high24h: Double,
-    val low24h: Double
+    val low24h: Double,
+    val sparkline: List<Double>
 )
 
 // Mapper: Entity -> Domain
@@ -29,7 +30,8 @@ fun CoinEntity.toCoin(): Coin {
         image = image,
         priceChangePercentage24h = priceChangePercentage24h,
         high24h = high24h,
-        low24h = low24h
+        low24h = low24h,
+        sparkline = sparkline
     )
 }
 
@@ -45,6 +47,7 @@ fun com.example.cryptotracker.data.remote.dto.CoinDto.toEntity(): CoinEntity {
         image = image,
         priceChangePercentage24h = priceChangePercentage24h,
         high24h = high24h,
-        low24h = low24h
+        low24h = low24h,
+        sparkline = sparklineIn7d?.price ?: emptyList()
     )
 }

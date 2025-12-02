@@ -18,7 +18,13 @@ data class CoinDto(
     @Json(name = "high_24h") val high24h: Double,
     @Json(name = "low_24h") val low24h: Double,
     @Json(name = "price_change_24h") val priceChange24h: Double,
-    @Json(name = "price_change_percentage_24h") val priceChangePercentage24h: Double
+    @Json(name = "price_change_percentage_24h") val priceChangePercentage24h: Double,
+    @Json(name = "sparkline_in_7d") val sparklineIn7d: SparklineDto?
+)
+
+@JsonClass(generateAdapter = true)
+data class SparklineDto(
+    val price: List<Double>
 )
 
 // Extension function to map DTO to Domain Model
@@ -33,6 +39,7 @@ fun CoinDto.toCoin(): Coin {
         image = image,
         priceChangePercentage24h = priceChangePercentage24h,
         high24h = high24h,
-        low24h = low24h
+        low24h = low24h,
+        sparkline = sparklineIn7d?.price ?: emptyList()
     )
 }

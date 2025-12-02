@@ -43,7 +43,9 @@ class CoinRepositoryImpl @Inject constructor(
 
         // 5. Fetch from Network
         try {
-            val remoteCoins = api.getCoins() // Network Call
+            val remoteCoins = api.getCoins(
+                sparkline = true
+            ) // Network Call
 
             // 6. Save to Database (Single Source of Truth)
             // We clear old cache and insert new.

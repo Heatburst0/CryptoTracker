@@ -9,5 +9,6 @@ data class Coin(
     val image: String,
     val priceChangePercentage24h: Double,
     val high24h: Double,
-    val low24h: Double
+    val low24h: Double,
+    val sparkline: List<Double> = emptyList()
 )
