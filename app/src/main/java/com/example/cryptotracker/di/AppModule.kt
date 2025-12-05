@@ -39,7 +39,10 @@ object AppModule {
             app,
             CoinDatabase::class.java,
             "coin_db"
-        ).build()
+        )
+            .addMigrations(CoinDatabase.MIGRATION_2_3)
+            .build()
+
     }
 
     // 3. Provide DAO (We need the DB to get the DAO)

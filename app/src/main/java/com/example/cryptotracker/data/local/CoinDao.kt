@@ -24,4 +24,10 @@ interface CoinDao {
     // Get single coin
     @Query("SELECT * FROM coin_table WHERE id = :id")
     suspend fun getCoinById(id: String): CoinEntity?
+
+    @Query("SELECT id FROM coin_table WHERE isFavorite = 1")
+    suspend fun getFavoriteCoinIds(): List<String>
+
+    @Query("UPDATE coin_table SET isFavorite = :isFavorite WHERE id = :id")
+    suspend fun updateFavoriteStatus(id: String, isFavorite: Boolean)
 }

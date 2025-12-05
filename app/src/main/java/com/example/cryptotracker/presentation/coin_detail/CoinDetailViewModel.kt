@@ -5,11 +5,14 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.cryptotracker.common.Resource
+import com.example.cryptotracker.common.UiEvent
 import com.example.cryptotracker.domain.model.Coin
 import com.example.cryptotracker.domain.repository.CoinRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -19,7 +22,10 @@ class CoinDetailViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle
 ) : ViewModel(){
     private val _state = MutableStateFlow(CoinDetailState())
+    private val _uiEvent = Channel<UiEvent>()
+    val uiEvent = _uiEvent.receiveAsFlow()
     val state: StateFlow<CoinDetailState> = _state
+
 
     init{
         savedStateHandle.get<String>("coinId")?.let { coinId ->
@@ -46,6 +52,17 @@ class CoinDetailViewModel @Inject constructor(
                     }
                 }
             }
+        }
+    }
+
+    fun onFavoriteClick(coinId: String, isFavorite: Boolean){
+        viewModelScope.launch {
+            repository.toggleFavoriteCoin(coinId, isFavorite)
+            _state.value = _state.value.copy(
+                coin = _state.value.coin?.copy(isFavorite = isFavorite)
+            )
+            val message = if (isFavorite) "Added to Watchlist" else "Removed from Watchlist"
+            _uiEvent.send(UiEvent.ShowSnackbar(message))
         }
     }
 }

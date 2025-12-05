@@ -1,5 +1,6 @@
 package com.example.cryptotracker.data.repository
 
+import android.util.Log
 import com.example.cryptotracker.common.Resource
 import com.example.cryptotracker.data.local.CoinDao
 import com.example.cryptotracker.data.local.toCoin
@@ -47,11 +48,17 @@ class CoinRepositoryImpl @Inject constructor(
                 sparkline = true
             ) // Network Call
 
+            val oldFavorites = dao.getFavoriteCoinIds()
+            val coinEntities = remoteCoins.map { dto ->
+                dto.toEntity().copy(
+                    isFavorite = oldFavorites.contains(dto.id)
+                )
+            }
             // 6. Save to Database (Single Source of Truth)
             // We clear old cache and insert new.
             // Ideally, we should diff, but for now clear/insert is safer.
             dao.clearCoins()
-            dao.insertCoins(remoteCoins.map { it.toEntity() })
+            dao.insertCoins(coinEntities)
 
             // 7. We don't emit data here!
             // We re-query the database to ensure we only show what was actually saved.
@@ -85,5 +92,10 @@ class CoinRepositoryImpl @Inject constructor(
         } catch (e: Exception) {
             return Resource.Error("Error fetching coin details")
         }
+    }
+
+    override suspend fun toggleFavoriteCoin(id: String, isFavorite: Boolean) {
+        dao.updateFavoriteStatus(id, isFavorite)
+        Log.e("Favorite","Favorite added")
     }
 }

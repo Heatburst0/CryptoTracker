@@ -12,4 +12,7 @@ interface CoinRepository {
 
     // Simple suspend function for single detail lookup
     suspend fun getCoinById(id: String): Resource<Coin>
+
+    suspend fun toggleFavoriteCoin(id: String, isFavorite: Boolean)
+
 }

@@ -15,7 +15,8 @@ data class CoinEntity(
     val priceChangePercentage24h: Double,
     val high24h: Double,
     val low24h: Double,
-    val sparkline: List<Double>
+    val sparkline: List<Double>,
+    val isFavorite: Boolean = false
 )
 
 // Mapper: Entity -> Domain
@@ -31,7 +32,8 @@ fun CoinEntity.toCoin(): Coin {
         priceChangePercentage24h = priceChangePercentage24h,
         high24h = high24h,
         low24h = low24h,
-        sparkline = sparkline
+        sparkline = sparkline,
+        isFavorite = isFavorite
     )
 }
 
@@ -48,6 +50,7 @@ fun com.example.cryptotracker.data.remote.dto.CoinDto.toEntity(): CoinEntity {
         priceChangePercentage24h = priceChangePercentage24h,
         high24h = high24h,
         low24h = low24h,
-        sparkline = sparklineIn7d?.price ?: emptyList()
+        sparkline = sparklineIn7d?.price ?: emptyList(),
+        isFavorite = false
     )
 }

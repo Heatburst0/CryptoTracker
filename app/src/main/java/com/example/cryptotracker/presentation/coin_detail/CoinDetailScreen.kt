@@ -7,6 +7,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.StarBorder
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -18,11 +20,13 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
+import com.example.cryptotracker.common.UiEvent
 // Imports from our new locations
 import com.example.cryptotracker.common.formatCompactNumber
 import com.example.cryptotracker.presentation.coin_detail.components.CoinGraph
 import com.example.cryptotracker.presentation.coin_detail.components.StatCard
 import com.example.cryptotracker.presentation.coin_detail.components.TimeSpanSelector
+import kotlinx.coroutines.flow.collectLatest
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -32,8 +36,23 @@ fun CoinDetailScreen(
 ) {
     val state = viewModel.state.collectAsState().value
     var selectedTimeSpan by remember { mutableStateOf("7 Days") }
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(key1 = true) {
+        viewModel.uiEvent.collectLatest { event ->
+            when(event){
+                is UiEvent.ShowSnackbar ->{
+                    snackbarHostState.showSnackbar(
+                        message = event.message,
+                        duration = SnackbarDuration.Short
+                    )
+                }
+            }
+        }
+    }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = {
@@ -46,6 +65,19 @@ fun CoinDetailScreen(
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                    }
+                },
+                actions = {
+                    state.coin?.let { coin ->
+                        IconButton(onClick = {
+                            viewModel.onFavoriteClick(coin.id, !coin.isFavorite)
+                        }) {
+                            Icon(
+                                imageVector = if (coin.isFavorite) Icons.Default.Star else Icons.Default.StarBorder,
+                                contentDescription = "Favorite",
+                                tint = if (coin.isFavorite) Color(0xFFFFD700) else MaterialTheme.colorScheme.onSurface
+                            )
+                        }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
