@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface CoinDao {
@@ -27,6 +28,9 @@ interface CoinDao {
 
     @Query("SELECT id FROM coin_table WHERE isFavorite = 1")
     suspend fun getFavoriteCoinIds(): List<String>
+
+    @Query("SELECT * FROM coin_table WHERE isFavorite = 1")
+    fun getFavoriteCoins() : Flow<List<CoinEntity>>
 
     @Query("UPDATE coin_table SET isFavorite = :isFavorite WHERE id = :id")
     suspend fun updateFavoriteStatus(id: String, isFavorite: Boolean)
