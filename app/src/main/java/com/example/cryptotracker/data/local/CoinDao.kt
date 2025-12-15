@@ -34,4 +34,7 @@ interface CoinDao {
 
     @Query("UPDATE coin_table SET isFavorite = :isFavorite WHERE id = :id")
     suspend fun updateFavoriteStatus(id: String, isFavorite: Boolean)
+
+    @Query("SELECT * FROM coin_table ORDER BY marketCap DESC LIMIT 50")
+    suspend fun getCachedCoins(): List<CoinEntity>
 }

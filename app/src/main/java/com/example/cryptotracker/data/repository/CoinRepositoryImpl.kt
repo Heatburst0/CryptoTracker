@@ -1,11 +1,17 @@
 package com.example.cryptotracker.data.repository
 
 import android.util.Log
+import androidx.paging.Pager
+import androidx.paging.PagingConfig
+import androidx.paging.PagingData
 import com.example.cryptotracker.common.Resource
 import com.example.cryptotracker.data.local.CoinDao
 import com.example.cryptotracker.data.local.toCoin
 import com.example.cryptotracker.data.remote.CoinGeckoApi
 import com.example.cryptotracker.data.local.toEntity
+import com.example.cryptotracker.data.remote.CoinPagingSource
+import com.example.cryptotracker.data.remote.dto.CoinDto
+import com.example.cryptotracker.data.remote.dto.toCoin
 import com.example.cryptotracker.domain.repository.CoinRepository
 import com.example.cryptotracker.domain.model.Coin
 import kotlinx.coroutines.flow.Flow
@@ -19,63 +25,6 @@ class CoinRepositoryImpl @Inject constructor(
     private val api: CoinGeckoApi,
     private val dao: CoinDao
 ) : CoinRepository {
-
-    override fun getCoins(fetchFromRemote: Boolean): Flow<Resource<List<Coin>>> = flow {
-        // 1. Emit Loading State immediately
-        emit(Resource.Loading(true))
-
-        // 2. Query Local Database (Source of Truth)
-        val localCoins = dao.getCoins().first() // We take a snapshot of the DB
-
-        // 3. Emit Local Data (even if empty, or old)
-        // We map Entity -> Domain Model here
-        emit(Resource.Success(
-            data = localCoins.map { it.toCoin() }
-        ))
-
-        // 4. If we want fresh data...
-        val isDbEmpty = localCoins.isEmpty()
-        val shouldLoadFromCache = !isDbEmpty && !fetchFromRemote
-
-        if (shouldLoadFromCache) {
-            emit(Resource.Loading(false))
-            return@flow
-        }
-
-        // 5. Fetch from Network
-        try {
-            val remoteCoins = api.getCoins(
-                sparkline = true
-            ) // Network Call
-
-            val oldFavorites = dao.getFavoriteCoinIds()
-            val coinEntities = remoteCoins.map { dto ->
-                dto.toEntity().copy(
-                    isFavorite = oldFavorites.contains(dto.id)
-                )
-            }
-            // 6. Save to Database (Single Source of Truth)
-            // We clear old cache and insert new.
-            // Ideally, we should diff, but for now clear/insert is safer.
-            dao.clearCoins()
-            dao.insertCoins(coinEntities)
-
-            // 7. We don't emit data here!
-            // We re-query the database to ensure we only show what was actually saved.
-            // This guarantees the "Single Source of Truth" principle.
-            val newLocalCoins = dao.getCoins().first()
-            emit(Resource.Success(newLocalCoins.map { it.toCoin() }))
-
-        } catch (e: IOException) {
-            // Internet issue
-            emit(Resource.Error("Couldn't reach server. Check your internet connection."))
-        } catch (e: HttpException) {
-            // Server issue (404, 500)
-            emit(Resource.Error(e.localizedMessage ?: "An unexpected error occurred"))
-        }
-
-        emit(Resource.Loading(false))
-    }
 
     override suspend fun getCoinById(id: String): Resource<Coin> {
         try {
@@ -106,5 +55,63 @@ class CoinRepositoryImpl @Inject constructor(
             emit(Resource.Success(entities.map { it.toCoin() }))
         }
 
+    }
+
+    override fun getCoinsPaged(): Flow<PagingData<Coin>> {
+        return Pager(
+            config = PagingConfig(
+                pageSize = 20,
+                enablePlaceholders = false
+            ),
+            pagingSourceFactory = { CoinPagingSource(api,dao){ remoteDtos ->
+                saveCoinsToDb(remoteDtos)
+            } }
+        ).flow
+    }
+
+    override fun searchCoins(query: String): Flow<Resource<List<Coin>>> = flow{
+        emit(Resource.Loading(true))
+
+        try{
+
+            val searchResult = api.searchCoins(query)
+
+            if(searchResult.coins.isEmpty()){
+                emit(Resource.Success(emptyList()))
+                emit(Resource.Loading(false))
+                return@flow
+            }
+
+            // Extract Top 5 IDs to save bandwidth
+            // joinToString creates: "bitcoin,bitcoin-gold,wrapped-bitcoin"
+            val ids = searchResult.coins.take(5).joinToString(","){
+                it.id
+            }
+            val marketData = api.getCoins(
+                ids = ids,
+                perPage = 5,
+                page=1,
+                sparkline = true
+            )
+            saveCoinsToDb(marketData)
+
+            val coins = marketData.map { it.toCoin() }
+            emit(Resource.Success(coins))
+        }catch (e: Exception){
+            emit(Resource.Error("Search failed: ${e.localizedMessage}"))
+        }
+        emit(Resource.Loading(false))
+    }
+
+    private suspend fun saveCoinsToDb(remoteCoins: List<CoinDto>) {
+        val favoriteIds = dao.getFavoriteCoinIds()
+
+        val coinEntities = remoteCoins.map {
+            it.toEntity().copy(
+                isFavorite = favoriteIds.contains(it.id)
+            )
+        }
+
+        dao.insertCoins(coinEntities)
     }
 }
