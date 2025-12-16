@@ -1,7 +1,7 @@
 [versions]
 # Core Android & Kotlin
 agp = "8.13.1"
-androidGradlePlugin = "8.5.2"
+androidGradlePlugin = "8.13.2"
 kotlin = "2.0.21"           # Stable Kotlin
 ksp = "2.0.21-1.0.26"
 
@@ -29,9 +29,14 @@ coil = "2.7.0"
 # Testing
 junit = "4.13.2"
 junitVersion = "1.2.1"
-espressoCore = "3.6.1"
+espressoCore = "3.7.0"
+mockk = "1.13.8"
+coroutines-test = "1.7.3" # Match your coroutines version
+turbine = "1.0.0"
+truth = "1.1.5"
 
 paging = "3.3.6"
+ui = "1.10.0"
 
 [libraries]
 # Core
@@ -78,8 +83,12 @@ coil-compose = { group = "io.coil-kt", name = "coil-compose", version.ref = "coi
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }
 androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espressoCore" }
-androidx-ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-test-junit4" }
-androidx-ui-test-manifest = { group = "androidx.compose.ui", name = "ui-test-manifest" }
+androidx-ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-test-junit4", version.ref ="ui" }
+androidx-ui-test-manifest = { group = "androidx.compose.ui", name = "ui-test-manifest", version.ref = "ui" }
+mockk = { group = "io.mockk", name = "mockk", version.ref = "mockk" }
+kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "coroutines-test" }
+turbine = { group = "app.cash.turbine", name = "turbine", version.ref = "turbine" }
+truth = { group = "com.google.truth", name = "truth", version.ref = "truth" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "androidGradlePlugin" }
