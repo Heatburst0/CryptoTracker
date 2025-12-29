@@ -49,7 +49,7 @@ object AppModule {
     @Provides
     @Singleton
     fun provideCoinDao(db: CoinDatabase): CoinDao {
-        return db.dao
+        return db.coinDao
     }
 
     // 4. Provide Repository Implementation
@@ -57,7 +57,7 @@ object AppModule {
     // This allows us to easily swap the Impl with a FakeRepository during testing.
     @Provides
     @Singleton
-    fun provideCoinRepository(api: CoinGeckoApi, dao: CoinDao): CoinRepository {
-        return CoinRepositoryImpl(api, dao)
+    fun provideCoinRepository(api: CoinGeckoApi, db: CoinDatabase): CoinRepository {
+        return CoinRepositoryImpl(api, db)
     }
 }

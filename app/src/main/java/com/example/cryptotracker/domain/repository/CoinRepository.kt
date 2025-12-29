@@ -22,4 +22,8 @@ interface CoinRepository {
 
     fun searchCoins(query: String) : Flow<Resource<List<Coin>>>
 
+    suspend fun refreshCoin(coinId: String): Resource<Unit>
+
+    suspend fun refreshFavorites() : Resource<Unit>
+
 }

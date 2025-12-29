@@ -1,5 +1,6 @@
 package com.example.cryptotracker.data.local
 
+import androidx.paging.PagingSource
 import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
@@ -37,4 +38,11 @@ interface CoinDao {
 
     @Query("SELECT * FROM coin_table ORDER BY marketCap DESC LIMIT 50")
     suspend fun getCachedCoins(): List<CoinEntity>
+
+    @Query("DELETE FROM coin_table WHERE isFavorite = 0")
+    suspend fun clearNonFavorites()
+
+    // Ensure this returns PagingSource (Room generates this automatically)
+    @Query("SELECT * FROM coin_table ORDER BY marketCapRank ASC")
+    fun getCoinsPagingSource(): PagingSource<Int, CoinEntity>
 }

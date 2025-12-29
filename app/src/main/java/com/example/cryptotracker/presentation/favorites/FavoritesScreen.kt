@@ -11,8 +11,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -28,6 +30,7 @@ fun FavoritesScreen(
     viewModel: FavoritesViewModel = hiltViewModel()
 ) {
     val state = viewModel.state.collectAsState().value
+    val isRefreshing by viewModel.isRefreshing.collectAsState()
 
     Scaffold(
         topBar = {
@@ -37,34 +40,40 @@ fun FavoritesScreen(
                 }
             )
         }
-    ) { paddingValues ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
+    ) { padding ->
+        PullToRefreshBox(
+            isRefreshing = isRefreshing,
+            onRefresh = { viewModel.refreshFavorites() },
+            modifier = Modifier.padding(padding)
         ) {
-            LazyColumn(modifier = Modifier.fillMaxSize()) {
-                items(state.coins) { coin ->
-                    CoinListItem(
-                        coin = coin,
-                        onItemClick = {
-                            navController.navigate(Screen.CoinDetailScreen.route + "/${coin.id}")
-                        }
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+
+            ) {
+                LazyColumn(modifier = Modifier.fillMaxSize()) {
+                    items(state.coins) { coin ->
+                        CoinListItem(
+                            coin = coin,
+                            onItemClick = {
+                                navController.navigate(Screen.CoinDetailScreen.route + "/${coin.id}")
+                            }
+                        )
+                    }
+                }
+
+                if (state.coins.isEmpty() && !state.isLoading) {
+                    Text(
+                        text = "No favorites yet",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.align(Alignment.Center)
                     )
                 }
-            }
 
-            if (state.coins.isEmpty() && !state.isLoading) {
-                Text(
-                    text = "No favorites yet",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.align(Alignment.Center)
-                )
-            }
-
-            if(state.isLoading) {
-                CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                if(state.isLoading) {
+                    CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                }
             }
         }
     }

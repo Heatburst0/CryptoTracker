@@ -76,6 +76,7 @@ dependencies {
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx) // For Coroutines support
     ksp(libs.androidx.room.compiler)
+    implementation(libs.androidx.room.paging)
 
     // Coil (Images)
     implementation(libs.coil.compose)

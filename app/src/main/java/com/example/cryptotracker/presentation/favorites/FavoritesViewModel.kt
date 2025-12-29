@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
@@ -20,9 +21,12 @@ class FavoritesViewModel @Inject constructor(
 
     private val _state = MutableStateFlow(CoinListState())
     val state : StateFlow<CoinListState> = _state
+    private val _isRefreshing = MutableStateFlow(false)
+    val isRefreshing: StateFlow<Boolean> = _isRefreshing
 
     init {
         getFavorites()
+        refreshFavorites()
     }
 
     private fun getFavorites(){
@@ -47,5 +51,13 @@ class FavoritesViewModel @Inject constructor(
                 }
             }
         }.launchIn(viewModelScope)
+    }
+
+    fun refreshFavorites() {
+        viewModelScope.launch {
+            _isRefreshing.value = true
+            repository.refreshFavorites() // API -> DB
+            _isRefreshing.value = false
+        }
     }
 }

@@ -1,6 +1,7 @@
 package com.example.cryptotracker.presentation.coin_detail
 
 import android.R
+import android.util.Log
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -26,33 +27,40 @@ class CoinDetailViewModel @Inject constructor(
     val uiEvent = _uiEvent.receiveAsFlow()
     val state: StateFlow<CoinDetailState> = _state
 
+    private val _isRefreshing = MutableStateFlow(false)
+    val isRefreshing : StateFlow<Boolean> = _isRefreshing
+
+    private val coinId: String? = savedStateHandle.get<String>("coinId")
+
 
     init{
-        savedStateHandle.get<String>("coinId")?.let { coinId ->
-            getCoin(coinId)
-        }
+        getCoin()
+        refreshCoin()
     }
-    private fun getCoin(coinId : String){
-        viewModelScope.launch {
-            repository.getCoinById(coinId).let { result ->
-                when(result) {
-                    is Resource.Success -> {
-                        _state.value = CoinDetailState(coin = result.data)
-                    }
-                    is Resource.Error -> {
-                        _state.value = _state.value.copy( // Keep old data if possible
-                            error = result.message ?: "An unexpected error occurred",
-                            isLoading = false
-                        )
-                    }
-                    is Resource.Loading -> {
-                        _state.value = _state.value.copy( // Keep old data visible
-                            isLoading = true
-                        )
+    private fun getCoin(){
+        coinId?.let { id->
+            viewModelScope.launch {
+                repository.getCoinById(id).let { result ->
+                    when(result) {
+                        is Resource.Success -> {
+                            _state.value = CoinDetailState(coin = result.data)
+                        }
+                        is Resource.Error -> {
+                            _state.value = _state.value.copy( // Keep old data if possible
+                                error = result.message ?: "An unexpected error occurred",
+                                isLoading = false
+                            )
+                        }
+                        is Resource.Loading -> {
+                            _state.value = _state.value.copy( // Keep old data visible
+                                isLoading = true
+                            )
+                        }
                     }
                 }
             }
         }
+
     }
 
     fun onFavoriteClick(coinId: String, isFavorite: Boolean){
@@ -63,6 +71,24 @@ class CoinDetailViewModel @Inject constructor(
             )
             val message = if (isFavorite) "Added to Watchlist" else "Removed from Watchlist"
             _uiEvent.send(UiEvent.ShowSnackbar(message))
+        }
+    }
+
+    fun refreshCoin(){
+        coinId?.let { id ->
+            viewModelScope.launch {
+                _isRefreshing.value=true
+                val result = repository.refreshCoin(id)
+                if(result is Resource.Success) {
+                    getCoin()
+                    Log.e("Refresh","Refresh is done")
+                } else {
+                    // Optional: Show a "Toast" or error message for refresh failure
+                    Log.e("Refresh","Refresh failure ${result.message}")
+                }
+
+                _isRefreshing.value = false
+            }
         }
     }
 }

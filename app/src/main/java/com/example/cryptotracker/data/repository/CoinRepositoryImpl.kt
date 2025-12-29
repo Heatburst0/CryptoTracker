@@ -1,15 +1,19 @@
 package com.example.cryptotracker.data.repository
 
 import android.util.Log
+import androidx.paging.ExperimentalPagingApi
 import androidx.paging.Pager
 import androidx.paging.PagingConfig
 import androidx.paging.PagingData
+import androidx.paging.map
 import com.example.cryptotracker.common.Resource
 import com.example.cryptotracker.data.local.CoinDao
+import com.example.cryptotracker.data.local.CoinDatabase
 import com.example.cryptotracker.data.local.toCoin
 import com.example.cryptotracker.data.remote.CoinGeckoApi
 import com.example.cryptotracker.data.local.toEntity
 import com.example.cryptotracker.data.remote.CoinPagingSource
+import com.example.cryptotracker.data.remote.CoinRemoteMediator
 import com.example.cryptotracker.data.remote.dto.CoinDto
 import com.example.cryptotracker.data.remote.dto.toCoin
 import com.example.cryptotracker.domain.repository.CoinRepository
@@ -17,15 +21,17 @@ import com.example.cryptotracker.domain.model.Coin
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.map
 import retrofit2.HttpException
 import java.io.IOException
 import javax.inject.Inject
 
 class CoinRepositoryImpl @Inject constructor(
     private val api: CoinGeckoApi,
-    private val dao: CoinDao
+    private val db: CoinDatabase
 ) : CoinRepository {
 
+    private val dao = db.coinDao
     override suspend fun getCoinById(id: String): Resource<Coin> {
         try {
             // 1. Check Local Database first (Fast & Offline-ready)
@@ -57,16 +63,18 @@ class CoinRepositoryImpl @Inject constructor(
 
     }
 
+    @OptIn(ExperimentalPagingApi::class)
     override fun getCoinsPaged(): Flow<PagingData<Coin>> {
         return Pager(
-            config = PagingConfig(
-                pageSize = 20,
-                enablePlaceholders = false
-            ),
-            pagingSourceFactory = { CoinPagingSource(api,dao){ remoteDtos ->
-                saveCoinsToDb(remoteDtos)
-            } }
-        ).flow
+            config = PagingConfig(pageSize = 20),
+
+            // Now we can pass 'db' because we have it in the constructor
+            remoteMediator = CoinRemoteMediator(api, db),
+
+            pagingSourceFactory = { dao.getCoinsPagingSource() }
+        ).flow.map { pagingData ->
+            pagingData.map { it.toCoin() }
+        }
     }
 
     override fun searchCoins(query: String): Flow<Resource<List<Coin>>> = flow{
@@ -101,6 +109,31 @@ class CoinRepositoryImpl @Inject constructor(
             emit(Resource.Error("Search failed: ${e.localizedMessage}"))
         }
         emit(Resource.Loading(false))
+    }
+
+    override suspend fun refreshCoin(coinId: String): Resource<Unit> {
+        return try{
+            val response = api.getCoins(ids=coinId, perPage = 1, page = 1, sparkline = true)
+            saveCoinsToDb(response)
+            Resource.Success(Unit)
+        }catch (e: Exception){
+            Resource.Error("Failed to refresh: ${e.localizedMessage}")
+        }
+    }
+
+    override suspend fun refreshFavorites(): Resource<Unit> {
+        return try{
+            val favoriteIds = dao.getFavoriteCoinIds()
+            if(favoriteIds.isEmpty()) return Resource.Success(Unit)
+            val idsString = favoriteIds.joinToString(",")
+
+            val response = api.getCoins(ids=idsString, perPage = 100, page = 1, sparkline = true)
+            saveCoinsToDb(response)
+
+            Resource.Success(Unit)
+        }catch (e: Exception){
+            Resource.Error("Failed to refresh favorites: ${e.localizedMessage}")
+        }
     }
 
     private suspend fun saveCoinsToDb(remoteCoins: List<CoinDto>) {

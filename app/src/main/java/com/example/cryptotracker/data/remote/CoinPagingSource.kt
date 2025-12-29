@@ -1,5 +1,6 @@
 package com.example.cryptotracker.data.remote
 
+import android.util.Log
 import androidx.paging.PagingSource
 import androidx.paging.PagingState
 import com.example.cryptotracker.data.local.CoinDao
@@ -58,6 +59,7 @@ class CoinPagingSource(
                 }
             }
             // If DB is empty or it's page 2+, return the error
+            Log.e("API Error","${e.localizedMessage}")
             LoadResult.Error(e)
         }
     }

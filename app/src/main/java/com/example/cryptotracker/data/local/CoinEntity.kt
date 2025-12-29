@@ -10,6 +10,7 @@ data class CoinEntity(
     val name: String,
     val symbol: String,
     val currentPrice: Double,
+    val marketCapRank: Int,
     val marketCap: Double,
     val image: String,
     val priceChangePercentage24h: Double,
@@ -33,6 +34,7 @@ fun CoinEntity.toCoin(): Coin {
         high24h = high24h,
         low24h = low24h,
         sparkline = sparkline,
+
         isFavorite = isFavorite
     )
 }
@@ -44,12 +46,13 @@ fun com.example.cryptotracker.data.remote.dto.CoinDto.toEntity(): CoinEntity {
         id = id,
         name = name,
         symbol = symbol,
-        currentPrice = currentPrice,
-        marketCap = marketCap,
+        currentPrice = currentPrice?:0.0,
+        marketCapRank = marketCapRank?:0,
+        marketCap = marketCap?:0.0,
         image = image,
-        priceChangePercentage24h = priceChangePercentage24h,
-        high24h = high24h,
-        low24h = low24h,
+        priceChangePercentage24h = priceChangePercentage24h?:0.0,
+        high24h = high24h?:0.0,
+        low24h = low24h?:0.0,
         sparkline = sparklineIn7d?.price ?: emptyList(),
         isFavorite = false
     )

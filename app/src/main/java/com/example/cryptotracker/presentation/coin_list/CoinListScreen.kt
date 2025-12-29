@@ -8,6 +8,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -22,7 +23,7 @@ import com.example.cryptotracker.common.Constants.parseErrorMessage
 import com.example.cryptotracker.presentation.Screen
 import com.example.cryptotracker.presentation.coin_list.components.CoinListItem
 
-@OptIn(ExperimentalMaterial3Api::class) // TopAppBar is experimental in M3
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CoinListScreen(
     navController: NavController,
@@ -34,16 +35,17 @@ fun CoinListScreen(
     // Local state to toggle search bar visibility
     var isSearchActive by remember { mutableStateOf(false) }
 
-    val isSearchMode = state.searchQuery.isNotEmpty()
+    // Calculate refreshing state based on Mediator or standard Refresh
+    val isRefreshing = coins.loadState.refresh is LoadState.Loading
 
-    // Filter Logic: Filter the list based on the query
+    val isSearchMode = state.searchQuery.isNotEmpty()
+    val haveCoins = coins.itemCount > 0
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = {
                     if (isSearchActive) {
-                        // Search Field
                         TextField(
                             value = state.searchQuery,
                             onValueChange = { viewModel.onSearch(it) },
@@ -58,15 +60,13 @@ fun CoinListScreen(
                             modifier = Modifier.fillMaxWidth()
                         )
                     } else {
-                        // Regular Title
                         Text(text = "Crypto Tracker")
                     }
                 },
                 actions = {
                     IconButton(onClick = {
                         if(isSearchActive) {
-                            // If closing search, clear text
-                            viewModel.onSearch("")
+                            viewModel.onSearch("") // Clear text on close
                         }
                         isSearchActive = !isSearchActive
                     }) {
@@ -83,10 +83,12 @@ fun CoinListScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues) // Respect TopBar height
+                .padding(paddingValues)
         ) {
             if(isSearchMode){
-
+                // ------------------------------------------------
+                // MODE A: SEARCH (Database Cache + API)
+                // ------------------------------------------------
                 LazyColumn(modifier = Modifier.fillMaxSize()) {
                     items(state.coins) { coin ->
                         CoinListItem(
@@ -108,12 +110,10 @@ fun CoinListScreen(
                     )
                 }
 
-                // Loading State for Search
                 if (state.isLoading) {
                     CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
                 }
 
-                // Error State for Search
                 if (state.error.isNotBlank()) {
                     Text(
                         text = state.error,
@@ -122,108 +122,106 @@ fun CoinListScreen(
                         modifier = Modifier.align(Alignment.Center)
                     )
                 }
-            }else{
+            } else {
                 // ------------------------------------------------
-                // MODE B: BROWSING (Paging 3 Infinite Scroll)
+                // MODE B: BROWSING (Paging 3 + RemoteMediator)
                 // ------------------------------------------------
 
-                LazyColumn(modifier = Modifier.fillMaxSize()) {
-                    // 1. The Coin Items
-                    items(coins.itemCount,
-                        key = { index ->
-                            coins[index]?.id ?: index
-                        }
+                PullToRefreshBox(
+                    isRefreshing = isRefreshing,
+                    onRefresh = { coins.refresh() }
+                ) {
+                    LazyColumn(modifier = Modifier.fillMaxSize()) {
+
+                        // 1. Coin Items
+                        items(
+                            count = coins.itemCount,
+                            key = { index -> coins[index]?.id ?: index }
                         ) { index ->
-                        val coin = coins[index]
-                        if (coin != null) {
-                            CoinListItem(
-                                coin = coin,
-                                onItemClick = {
-                                    navController.navigate(Screen.CoinDetailScreen.route + "/${coin.id}")
-                                }
-                            )
-                        }
-                    }
-
-                    // 2. Footer Loading State (Appending)
-                    when (val appendState = coins.loadState.append) {
-                        is LoadState.Loading -> {
-                            item {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(16.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    CircularProgressIndicator()
-                                }
+                            val coin = coins[index]
+                            if (coin != null) {
+                                CoinListItem(
+                                    coin = coin,
+                                    onItemClick = {
+                                        navController.navigate(Screen.CoinDetailScreen.route + "/${coin.id}")
+                                    }
+                                )
                             }
                         }
-                        is LoadState.Error -> {
-                            item {
-                                Column(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(16.dp),
-                                    horizontalAlignment = Alignment.CenterHorizontally
-                                ) {
-                                    Text(
-                                        text = parseErrorMessage(appendState.error),
-                                        color = MaterialTheme.colorScheme.error
-                                    )
-                                    Spacer(modifier = Modifier.height(8.dp))
-                                    Button(
-                                        onClick = { coins.retry() },
-                                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
-                                    ) {
-                                        Text("Retry")
+
+                        // 2. Footer Loading/Error State (Appending)
+                        // FIX: Check BOTH standard state AND Mediator state
+                        val appendState = coins.loadState.append
+
+                        val mediatorState = coins.loadState.mediator
+
+                        when {
+                            appendState is LoadState.Loading -> {
+                                item {
+                                    Box(
+                                        modifier = Modifier.fillMaxWidth().padding(16.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) { CircularProgressIndicator() }
+                                }
+                            }
+                            // If either PagingSource OR RemoteMediator failed, show Retry
+                            appendState is LoadState.Error ||
+                                    mediatorState?.refresh is LoadState.Error ||
+                                    mediatorState?.append is LoadState.Error -> {
+                                val error = (appendState as? LoadState.Error)?.error
+                                    ?: (mediatorState?.append as? LoadState.Error)?.error
+                                    ?: (mediatorState?.refresh as? LoadState.Error)?.error
+
+                                if (error != null) { // Only show if we actually found an error
+                                    item {
+                                        Column(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(16.dp),
+                                            horizontalAlignment = Alignment.CenterHorizontally
+                                        ) {
+                                            Text(
+                                                text = "Could not load more coins", // Simpler message usually better here
+                                                color = MaterialTheme.colorScheme.error
+                                            )
+                                            Button(onClick = { coins.retry() }) {
+                                                Text("Retry")
+                                            }
+                                        }
                                     }
                                 }
                             }
                         }
-                        else -> {}
                     }
                 }
 
-                // 3. Full Screen Loading/Error (Refresh)
-                when (val refreshState = coins.loadState.refresh) {
-                    is LoadState.Loading -> {
-                        // Only show spinner if we have NO items (otherwise keep showing cached list)
-                        if (coins.itemCount == 0) {
-                            CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
-                        }
-                    }
-                    is LoadState.Error -> {
-                        // Only show full screen error if DB is empty AND Net failed
-                        if (coins.itemCount == 0) {
-                            Column(
-                                modifier = Modifier
-                                    .align(Alignment.Center)
-                                    .padding(16.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Warning,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.error,
-                                    modifier = Modifier.size(48.dp)
-                                )
-                                Spacer(modifier = Modifier.height(8.dp))
-                                Text(
-                                    text = parseErrorMessage(refreshState.error),
-                                    color = MaterialTheme.colorScheme.error,
-                                    textAlign = TextAlign.Center
-                                )
-                                Spacer(modifier = Modifier.height(16.dp))
-                                Button(onClick = { coins.retry() }) {
-                                    Text("Retry")
-                                }
-                            }
-                        }
-                    }
-                    else -> {}
-                }
+                val refreshState = coins.loadState.refresh
 
+// FIX: Add the third check below
+                if (refreshState is LoadState.Error && !haveCoins && coins.loadState.source.refresh !is LoadState.Loading) {
+
+                    val error = (refreshState as LoadState.Error).error
+                    Column(
+                        modifier = Modifier.align(Alignment.Center).padding(16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Warning,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.size(48.dp)
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = parseErrorMessage(error),
+                            color = MaterialTheme.colorScheme.error,
+                            textAlign = TextAlign.Center
+                        )
+                        Button(onClick = { coins.retry() }) {
+                            Text("Retry")
+                        }
+                    }
+                }
             }
         }
     }
