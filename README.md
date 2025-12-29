@@ -42,3 +42,78 @@ graph TD
         Mediator -->|2. Save Data| DB[(Room Database)]
         DB -->|3. Emit Updates| Repo
     end
+
+
+    
+## 🔎 How It Works
+
+**The Trigger:**  
+The UI observes the Database via a `PagingSource`.
+
+**The Check:**  
+When the user scrolls to the bottom, Paging 3 checks if more data exists in the Database.
+
+**The Fetch:**  
+If the Database is empty (or the end is reached), `RemoteMediator` triggers.
+
+**The Sync:**  
+`RemoteMediator` calls the API, saves the new page to Room, and updates the `remote_keys` table.
+
+**The Update:**  
+Room automatically emits the new data to the UI.
+
+---
+
+## 🚀 Getting Started
+
+### Clone the repository
+
+```bash
+git clone https://github.com/yourusername/crypto-tracker.git
+```
+
+### Open in Android Studio  
+Open the project folder in Android Studio (Ladybug or newer recommended).
+
+### Sync Gradle  
+Allow the project to download dependencies.
+
+### Run the App  
+Select an emulator or physical device and click **Run**.
+
+---
+
+## 📂 Project Structure
+
+```
+com.example.cryptotracker
+├── common             # Constants, Resource Wrappers
+├── data
+│   ├── local          # Room DAO, Database, Entities
+│   ├── remote         # Retrofit API, DTOs, RemoteMediator
+│   └── repository     # Repository Implementation
+├── di                 # Hilt Modules (AppModule)
+├── domain
+│   ├── model          # Clean Domain Models
+│   ├── repository     # Repository Interfaces
+│   └── use_case       # Business Logic (GetCoins, SearchCoins)
+└── presentation
+    ├── coin_detail    # Detail Screen & ViewModel
+    ├── coin_list      # List Screen & ViewModel
+    └── theme          # Compose Theme & Colors
+```
+
+## 🔗 API Reference
+
+This project uses the free **CoinGecko API**.
+
+**Endpoint:** `/coins/markets`
+
+> The free tier has a rate limit of ~10–30 calls/minute.  
+> The app handles **HTTP 429 (Too Many Requests)** gracefully.
+
+---
+
+## 📄 License
+
+This project is licensed under the **MIT License** — see the `LICENSE` file for details.
