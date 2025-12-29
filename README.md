@@ -43,7 +43,7 @@ graph TD
         DB -->|3. Emit Updates| Repo
     end
 
-
+```
     
 ## 🔎 How It Works
 
