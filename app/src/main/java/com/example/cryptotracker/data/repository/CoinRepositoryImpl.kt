@@ -7,23 +7,19 @@ import androidx.paging.PagingConfig
 import androidx.paging.PagingData
 import androidx.paging.map
 import com.example.cryptotracker.common.Resource
-import com.example.cryptotracker.data.local.CoinDao
 import com.example.cryptotracker.data.local.CoinDatabase
 import com.example.cryptotracker.data.local.toCoin
 import com.example.cryptotracker.data.remote.CoinGeckoApi
 import com.example.cryptotracker.data.local.toEntity
-import com.example.cryptotracker.data.remote.CoinPagingSource
 import com.example.cryptotracker.data.remote.CoinRemoteMediator
 import com.example.cryptotracker.data.remote.dto.CoinDto
 import com.example.cryptotracker.data.remote.dto.toCoin
 import com.example.cryptotracker.domain.repository.CoinRepository
 import com.example.cryptotracker.domain.model.Coin
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
-import retrofit2.HttpException
-import java.io.IOException
+
 import javax.inject.Inject
 
 class CoinRepositoryImpl @Inject constructor(
