@@ -50,11 +50,9 @@ class CoinRepositoryImpl @Inject constructor(
         Log.e("Favorite","Favorite added")
     }
 
-    override fun getFavoriteCoins(): Flow<Resource<List<Coin>>> = flow {
-        emit(Resource.Loading(true))
-
-        dao.getFavoriteCoins().collect { entities ->
-            emit(Resource.Success(entities.map { it.toCoin() }))
+    override fun getFavoriteCoins(): Flow<List<Coin>> {
+        return dao.getFavoriteCoins().map { entities ->
+            entities.map { it.toCoin() }
         }
 
     }

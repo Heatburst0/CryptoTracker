@@ -16,7 +16,7 @@ interface CoinRepository {
 
     suspend fun toggleFavoriteCoin(id: String, isFavorite: Boolean)
 
-    fun getFavoriteCoins(): Flow<Resource<List<Coin>>>
+    fun getFavoriteCoins(): Flow<List<Coin>>
 
     fun getCoinsPaged() : Flow<PagingData<Coin>>
 

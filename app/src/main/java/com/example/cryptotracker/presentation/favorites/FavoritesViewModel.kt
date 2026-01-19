@@ -1,6 +1,5 @@
 package com.example.cryptotracker.presentation.favorites
 
-import android.view.View
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.cryptotracker.common.Resource
@@ -8,9 +7,10 @@ import com.example.cryptotracker.domain.repository.CoinRepository
 import com.example.cryptotracker.presentation.coin_list.CoinListState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.launchIn
-import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -19,44 +19,34 @@ class FavoritesViewModel @Inject constructor(
     private val repository: CoinRepository
 ) : ViewModel() {
 
-    private val _state = MutableStateFlow(CoinListState())
-    val state : StateFlow<CoinListState> = _state
+    val state: StateFlow<CoinListState> = repository.getFavoriteCoins() // Returns Flow<List<Coin>>
+        .map { coins ->
+            CoinListState(
+                coins = coins,
+                isLoading = false // DB data is always "loaded" instantly
+            )
+        }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = CoinListState(isLoading = true) // Only initial state is loading
+        )
     private val _isRefreshing = MutableStateFlow(false)
     val isRefreshing: StateFlow<Boolean> = _isRefreshing
 
     init {
-        getFavorites()
         refreshFavorites()
     }
 
-    private fun getFavorites(){
-        repository.getFavoriteCoins().onEach{ result->
-            when(result){
-                is Resource.Success ->{
-                    _state.value = _state.value.copy(
-                        coins = result.data ?: emptyList(),
-                        isLoading = false,
-                        error = ""
-                    )
-                }
-                is Resource.Loading ->{
-                    _state.value = _state.value.copy(
-                        isLoading = true)
-                }
-                is Resource.Error -> {
-                    _state.value = _state.value.copy(
-                        error = result.message ?: "Unexpected error",
-                        isLoading = false
-                    )
-                }
-            }
-        }.launchIn(viewModelScope)
-    }
+
 
     fun refreshFavorites() {
         viewModelScope.launch {
             _isRefreshing.value = true
-            repository.refreshFavorites() // API -> DB
+            val result = repository.refreshFavorites() // API -> DB
+            if(result is Resource.Error){
+                println("Sync Error: ${result.message}")
+            }
             _isRefreshing.value = false
         }
     }
